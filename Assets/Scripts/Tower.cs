@@ -1,96 +1,107 @@
-﻿using UnityEngine; // Подключаем основные функции Unity
+﻿using UnityEngine;
 
-public class Tower : MonoBehaviour // Наследуем от MonoBehaviour чтобы скрипт работал в Unity
+public class Tower : MonoBehaviour
 {
-    // === НАСТРОЙКИ БАШНИ ===
-    [Header("Настройки башни")] // Заголовок в инспекторе
-    public float attackRange = 5f;    // Радиус, в котором башня видит врагов
-    public float attackRate = 2f;     // Сколько раз в секунду башня стреляет (1/2 = каждые 0.5 сек)
+    [Header("Настройки башни")]
+    public float attackRange = 10f;    // Радиус атаки
+    public float attackRate = 1f;     // Скорость атаки (выстрелов в секунду)
 
-    // === ССЫЛКИ НА ОБЪЕКТЫ ===
-    [Header("Ссылки на объекты")]
-    public Transform firePoint;       // Место, откуда вылетают снаряды
+    [Header("Ссылки")]
+    public Transform firePoint;       // Точка выстрела
+    public GameObject projectilePrefab; // Префаб снаряда
 
-    // === ПЕРЕМЕННЫЕ ДЛЯ РАБОТЫ ===
-    private float lastAttackTime;     // Время последней атаки (запоминаем)
-    private Transform currentTarget;  // Текущий враг, в которого стреляем
+    private float lastAttackTime;     // Время последней атаки
+    private Transform currentTarget;  // Текущая цель
 
-    // === ОСНОВНОЙ ЦИКЛ ===
-    // Update вызывается КАЖДЫЙ КАДР (60 раз в секунду)
     void Update()
     {
-        // 1. Ищем врага в радиусе атаки
+        // Ищем цель
         FindTarget();
 
-        // 2. Если есть цель и прошло достаточно времени с последней атаки
+        // Если есть цель и можно атаковать - атакуем
         if (currentTarget != null && CanAttack())
         {
-            // 3. Атакуем врага
             Attack();
-            // 4. Запоминаем время атаки
             lastAttackTime = Time.time;
         }
     }
 
-    // === ПОИСК ВРАГА ===
     void FindTarget()
     {
-        // Сбрасываем цель, чтобы искать заново
+        // Сбрасываем текущую цель
         currentTarget = null;
 
-        // Ищем ВСЕ коллайдеры в радиусе атаки
-        Collider[] allColliders = Physics.OverlapSphere(transform.position, attackRange);
+        // Ищем все коллайдеры в радиусе атаки
+        Collider[] collidersInRange = Physics.OverlapSphere(transform.position, attackRange);
 
-        // Перебираем все найденные коллайдеры по очереди
-        foreach (Collider collider in allColliders)
+        // Перебираем все найденные коллайдеры
+        foreach (Collider collider in collidersInRange)
         {
-            // Проверяем тег объекта - если это "Enemy", то это враг
+            // Проверяем тег "Enemy"
             if (collider.CompareTag("Enemy"))
             {
-                // Нашли врага! Запоминаем его и выходим из цикла
+                // Нашли врага - запоминаем и выходим из цикла
                 currentTarget = collider.transform;
-                break; // Прерываем цикл - нам нужен только один враг
+                break;
             }
         }
     }
 
-    // === ПРОВЕРКА МОЖНО ЛИ АТАКОВАТЬ ===
     bool CanAttack()
     {
-        // Time.time - текущее время игры в секундах
-        // lastAttackTime - время последней атаки
-        // attackRate - скорость атаки (например, 2 раза в секунду)
-
-        // Вычисляем: текущее время >= время последней атаки + интервал между атаками
+        // Проверяем, прошло ли достаточно времени с последней атаки
         return Time.time >= lastAttackTime + (1f / attackRate);
     }
 
-    // === АТАКА ===
     void Attack()
     {
-        // Выводим сообщение в консоль Unity
-        Debug.Log("🎯 Башня стреляет во врага: " + currentTarget.name);
+        Debug.Log("🏹 Башня атакует: " + currentTarget.name);
 
-        // Здесь потом будет:
-        // 1. Создание снаряда
-        // 2. Вращение башни к цели
-        // 3. Анимация выстрела
+        // Проверяем все необходимые компоненты
+        if (projectilePrefab == null)
+        {
+            Debug.LogError("❌ Не назначен projectilePrefab!");
+            return;
+        }
+
+        if (firePoint == null)
+        {
+            Debug.LogError("❌ Не назначен firePoint!");
+            return;
+        }
+
+        if (currentTarget == null)
+        {
+            Debug.LogError("❌ Нет цели для атаки!");
+            return;
+        }
+
+        // Создаем снаряд
+        GameObject newProjectile = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+
+        // Получаем компонент Projectile у снаряда
+        Projectile projectileComponent = newProjectile.GetComponent<Projectile>();
+
+        if (projectileComponent != null)
+        {
+            // Передаем цель снаряду
+            projectileComponent.SetTarget(currentTarget);
+            Debug.Log("➡️ Снаряд летит к: " + currentTarget.name);
+        }
+        else
+        {
+            Debug.LogError("❌ У снаряда нет компонента Projectile!");
+        }
     }
 
-    // === ВИЗУАЛИЗАЦИЯ В РЕДАКТОРЕ ===
-    // Этот метод рисует вспомогательные линии ТОЛЬКО в редакторе Unity
+    // Визуализация радиуса атаки в редакторе
     void OnDrawGizmosSelected()
     {
-        // Устанавливаем красный цвет
         Gizmos.color = Color.red;
-        // Рисуем прозрачную сферу радиуса attackRange
         Gizmos.DrawWireSphere(transform.position, attackRange);
 
-        // Если есть цель, рисуем линию к ней
-        if (currentTarget != null)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawLine(firePoint.position, currentTarget.position);
-        }
+        // Дополнительная визуализация - полупрозрачная сфера
+        Gizmos.color = new Color(1, 0, 0, 0.1f);
+        Gizmos.DrawSphere(transform.position, attackRange);
     }
 }
