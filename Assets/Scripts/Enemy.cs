@@ -87,6 +87,14 @@ public class Enemy : MonoBehaviour
     void ReachedEnd()
     {
         Debug.Log("?? Враг достиг конца пути!");
+
+        // Уведомляем спаунер о том, что враг уничтожен
+        EnemyTracker tracker = GetComponent<EnemyTracker>();
+        if (tracker != null)
+        {
+            // Трекер сам вызовет OnEnemyDied()
+        }
+
         Destroy(gameObject);
     }
 
